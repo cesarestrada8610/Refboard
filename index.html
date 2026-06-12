@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RetoDibujo">
+<title>Reto Dibujo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #0e0f11; color: #e8e8e8; font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif; overflow: hidden; }
+
+  #app { display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; }
+
+  /* Header */
+  #header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid #1e2024;
+    flex-shrink: 0;
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+  #logo { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
+  #logo .accent { color: #c8f060; }
+  #date-badge {
+    font-size: 11px; color: #666;
+    background: #181a1d; border: 1px solid #2a2c30;
+    border-radius: 20px; padding: 3px 10px;
+  }
+  #sources { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 10px; color: #555; }
+  .src-dot { font-size: 8px; }
+
+  /* Body */
+  #body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 90px; flex-shrink: 0;
+    background: #0a0b0d;
+    border-right: 1px solid #1e2024;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 8px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sb-item {
+    padding: 10px 8px; cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.12s; user-select: none;
+  }
+  .sb-item.active { border-left-color: var(--color); background: color-mix(in srgb, var(--color) 8%, transparent); }
+  .sb-icon { font-size: 18px; margin-bottom: 3px; }
+  .sb-label { font-size: 10px; color: #666; line-height: 1.3; }
+  .sb-item.active .sb-label { color: var(--color); font-weight: 700; }
+  .sb-today { font-size: 8px; color: var(--color); margin-top: 2px; opacity: 0.8; }
+
+  /* Main */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  /* Reto header */
+  #reto-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1e2024;
+    display: flex; align-items: flex-start; gap: 12px;
+    flex-shrink: 0;
+  }
+  #reto-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+    border: 1.5px solid transparent;
+  }
+  #reto-info { flex: 1; min-width: 0; }
+  #reto-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
+  #reto-title { font-size: 14px; font-weight: 700; }
+  .badge {
+    font-size: 9px; padding: 2px 7px;
+    border-radius: 4px; border: 1px solid transparent;
+  }
+  #reto-tip { font-size: 11px; color: #aaa; line-height: 1.5; }
+  #reto-tip .tip-label { font-weight: 600; }
+
+  /* Timer */
+  #timer-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
+  #timer-ring-wrap { position: relative; width: 64px; height: 64px; }
+  #timer-svg { transform: rotate(-90deg); }
+  #timer-track { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 4; }
+  #timer-fill {
+    fill: none; stroke: #c8f060; stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+  }
+  #timer-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; font-family: 'SF Mono', monospace;
+    color: #e8e8e8;
+  }
+  #timer-btns { display: flex; gap: 3px; }
+  .timer-quick {
+    font-size: 9px; padding: 3px 6px;
+    background: #181a1d; border: 1px solid #2a2c30;
+    border-radius: 4px; color: #888; cursor: pointer;
+    -webkit-appearance: none;
+  }
+
+  /* Foto area */
+  #foto-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+  #foto-wrap {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #080909; padding: 12px;
+    position: relative; overflow: hidden;
+  }
+  #foto-img {
+    max-width: 100%; max-height: calc(100% - 40px);
+    object-fit: contain; border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    display: none;
+  }
+  #foto-loading { text-align: center; color: #444; font-size: 13px; }
+  #foto-loading .spin { font-size: 28px; opacity: 0.4; display: block; margin-bottom: 8px; animation: spin 2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #foto-empty { text-align: center; color: #333; font-size: 13px; display: none; }
+  #foto-badge {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    display: none; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.75); border-radius: 6px;
+    padding: 4px 10px; font-size: 10px; color: #888;
+    backdrop-filter: blur(6px); white-space: nowrap;
+  }
+  #foto-src-chip {
+    font-size: 8px; padding: 1px 5px; border-radius: 3px;
+    border: 1px solid #60c8f0; color: #60c8f0;
+    background: rgba(96,200,240,0.15);
+  }
+
+  /* Right panel */
+  #panel {
+    width: 150px; flex-shrink: 0;
+    background: #0c0d0f; border-left: 1px solid #1e2024;
+    padding: 12px 10px; display: flex; flex-direction: column; gap: 6px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .panel-label { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .panel-btn {
+    display: block; width: 100%; padding: 8px;
+    border-radius: 7px; border: 1px solid #2a2c30;
+    background: #181a1d; color: #888;
+    font-size: 11px; cursor: pointer; text-align: center;
+    -webkit-appearance: none; transition: opacity 0.1s;
+  }
+  .panel-btn:active { opacity: 0.7; }
+  .panel-btn.primary { font-weight: 700; }
+  .panel-divider { border-top: 1px solid #1e2024; margin: 2px 0; padding-top: 6px; }
+  .timer-full-btn {
+    display: block; width: 100%; padding: 6px 8px;
+    margin-bottom: 3px;
+    background: #181a1d; border: 1px solid #2a2c30;
+    border-radius: 5px; color: #777;
+    font-size: 10px; text-align: left; cursor: pointer;
+    -webkit-appearance: none;
+  }
+  .timer-full-btn:active { opacity: 0.7; }
+  #done-msg {
+    display: none; padding: 8px;
+    border-radius: 7px; text-align: center;
+    font-size: 11px; font-weight: 600;
+  }
+  #ejercicios { font-size: 9px; color: #555; line-height: 1.8; }
+
+  /* iPad landscape adjustments */
+  @media (min-width: 768px) {
+    #sidebar { width: 110px; }
+    #panel { width: 170px; }
+    #reto-tip { font-size: 12px; }
+  }
+  @media (orientation: portrait) and (max-width: 820px) {
+    #sidebar { width: 70px; }
+    .sb-label { font-size: 9px; }
+    #panel { width: 130px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="logo"><span class="accent">Reto</span>Dibujo</div>
+    <div id="date-badge"></div>
+    <div id="sources">
+      <span id="src-real" style="display:flex;align-items:center;gap:4px">
+        <span class="src-dot" style="color:#60c8f0">●</span> Unsplash
+        <span class="src-dot" style="color:#f0a060; margin-left:4px">●</span> Pixabay
+        <span class="src-dot" style="color:#05d68a; margin-left:4px">●</span> Pexels
+      </span>
+      <span id="src-anime" style="display:none;align-items:center;gap:4px">
+        <span class="src-dot" style="color:#ff88dd">●</span> Waifu.im
+        <span class="src-dot" style="color:#cc88ff; margin-left:4px">●</span> Nekos.best
+      </span>
+    </div>
+  </div>
+
+  <div id="body">
+    <div id="sidebar"></div>
+
+    <div id="main">
+      <div id="reto-header">
+        <div id="reto-icon"></div>
+        <div id="reto-info">
+          <div id="reto-title-row">
+            <div id="reto-title"></div>
+            <div id="badge-tecnica" class="badge"></div>
+            <div id="badge-dur" class="badge" style="background:#181a1d;border-color:#2a2c30;color:#666;"></div>
+          </div>
+          <div id="reto-tip"></div>
+        </div>
+        <div id="timer-wrap">
+          <div id="timer-ring-wrap">
+            <svg id="timer-svg" width="64" height="64" viewBox="0 0 64 64">
+              <circle id="timer-track" cx="32" cy="32" r="26"/>
+              <circle id="timer-fill" cx="32" cy="32" r="26"/>
+            </svg>
+            <div id="timer-text">--:--</div>
+          </div>
+          <div id="timer-btns">
+            <button class="timer-quick" onclick="startTimer(10)">10m</button>
+            <button class="timer-quick" onclick="startTimer(20)">20m</button>
+            <button class="timer-quick" onclick="startTimer(30)">30m</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="foto-body">
+        <div id="foto-wrap">
+          <div id="foto-loading"><span class="spin">◌</span>Buscando referencia...</div>
+          <img id="foto-img" alt="referencia">
+          <div id="foto-empty"><div style="font-size:28px;margin-bottom:8px">⚠</div>Sin resultados. Verifica tu conexión.</div>
+          <div id="foto-badge">
+            <span id="foto-src-chip"></span>
+            <span id="foto-author"></span>
+          </div>
+        </div>
+
+        <div id="panel">
+          <div class="panel-label">Controles</div>
+          <button class="panel-btn primary" id="btn-otra" onclick="nextFoto()" style="background:transparent">🔀 Otra foto</button>
+          <button class="panel-btn" onclick="loadPool()">↻ Nuevas fotos</button>
+
+          <div class="panel-divider">
+            <div class="panel-label">Modo fuente</div>
+            <button id="btn-real" onclick="setMode('real')" class="panel-btn" style="margin-bottom:4px;background:#181a1d;border-color:#60c8f060;color:#60c8f0;font-weight:500">📷 Fotos reales</button>
+            <button id="btn-anime" onclick="setMode('anime')" class="panel-btn" style="margin-bottom:4px">✦ Anime / Ilustración</button>
+          </div>
+
+          <div class="panel-divider">
+            <div class="panel-label">Timer</div>
+            <button class="timer-full-btn" onclick="startTimer(10/60)">⏱ 10 seg</button>
+            <button class="timer-full-btn" onclick="startTimer(20/60)">⏱ 20 seg</button>
+            <button class="timer-full-btn" onclick="startTimer(30/60)">⏱ 30 seg</button>
+            <button class="timer-full-btn" onclick="startTimer(1)">⏱ 1 min</button>
+            <button class="timer-full-btn" onclick="startTimer(5)">⏱ 5 min</button>
+            <button class="timer-full-btn" onclick="startTimer(15)">⏱ 15 min</button>
+            <button class="timer-full-btn" onclick="startTimer(30)">⏱ 30 min</button>
+            <button class="timer-full-btn" onclick="startTimer(45)">⏱ 45 min</button>
+          </div>
+
+          <div id="done-msg">✓ ¡Completado!</div>
+
+          <div class="panel-divider">
+            <div class="panel-label">Ejercicios</div>
+            <div id="ejercicios">
+              ① Copia libre<br>
+              ② Retícula primero<br>
+              ③ Añade sombras<br>
+              ④ Sin borrador
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var UNSPLASH_KEY = "A5DcrCokRlQZMsbE-HTACvf4IXHlTlRJ7P-UCxzwhlc";
+var PIXABAY_KEY  = "44453015-61dce65a4c0166d4e7acf645a";
+var PEXELS_KEY   = "2QBM4eBFpYRJbFhPvecPptwUqEuVF9plr0QZono23eZE045thIUpGYYy";
+
+
+// ── Anime sources ────────────────────────────────────────────
+var animeMode = false;
+
+// Waifu.im — CORS-friendly anime image API
+var WAIFU_TAGS_MAP = {
+  rostro:    ["waifu","maid","uniform"],
+  ojos:      ["waifu","raiden-shogun","marin-kitagawa"],
+  manos:     ["waifu","oppai","uniform"],
+  cuerpo:    ["waifu","elf","maid"],
+  cabeza:    ["waifu","marin-kitagawa","raiden-shogun"],
+  expresion: ["waifu","maid","ero"],
+  perfil:    ["waifu","elf","uniform"],
+  desnudo:   ["waifu","oppai","elf"],
+  bodelon:   ["waifu","maid","uniform"]
+};
+
+async function fetchWaifuIm(retoId) {
+  try {
+    var tags = WAIFU_TAGS_MAP[retoId] || ["waifu"];
+    var results = [];
+    for (var i = 0; i < tags.length; i++) {
+      var url = "https://api.waifu.im/search?included_tags="+encodeURIComponent(tags[i])+"&limit=10&is_nsfw=false";
+      var r = await fetch(url, {headers:{Accept:"application/json"}});
+      var data = await r.json();
+      var imgs = (data.images||[]);
+      for (var j = 0; j < imgs.length; j++) {
+        var p = imgs[j];
+        results.push({
+          id: "wi_"+p.image_id,
+          url: p.url,
+          author: p.artist ? p.artist.name : "waifu.im",
+          source: "Waifu.im"
+        });
+      }
+    }
+    return results;
+  } catch(e) { return []; }
+}
+
+// Nekos.best — anime portraits, CORS-friendly
+var NEKOS_MAP = {
+  rostro:    "neko",
+  ojos:      "neko",
+  manos:     "neko",
+  cuerpo:    "kitsune",
+  cabeza:    "neko",
+  expresion: "neko",
+  perfil:    "kitsune",
+  desnudo:   "kitsune",
+  bodelon:   "neko"
+};
+
+async function fetchNekosBest(retoId) {
+  try {
+    var cat = NEKOS_MAP[retoId] || "neko";
+    var url = "https://nekos.best/api/v2/"+cat+"?amount=10";
+    var r = await fetch(url);
+    var data = await r.json();
+    return (data.results||[]).map(function(p) {
+      return {
+        id: "nb_"+p.url.split("/").pop(),
+        url: p.url,
+        author: p.artist_name || "nekos.best",
+        source: "Nekos.best"
+      };
+    });
+  } catch(e) { return []; }
+}
+
+var RETOS = [
+  { id:"rostro", label:"Rostro", icon:"◉", color:"#c8f060",
+    queries:["face portrait studio","portrait face close up","face natural light"],
+    tip:"Enfócate en la simetría del eje central. Marca primero los 5 puntos: ojos, nariz, boca.",
+    tecnica:"Líneas de construcción", duracion:"30 min" },
+  { id:"ojos", label:"Ojos", icon:"◌", color:"#60c8f0",
+    queries:["eye detail macro","eyes close up portrait","human eye beauty"],
+    tip:"El iris rara vez es un círculo perfecto — la párpada superior cubre parte de él. Observa el reflejo de luz.",
+    tecnica:"Detalle y textura", duracion:"20 min" },
+  { id:"manos", label:"Manos", icon:"✋", color:"#f0a060",
+    queries:["hands gesture detail","hand fingers close up","human hand pose"],
+    tip:"Simplifica primero con un bloque rectangular para la palma. Los nudillos forman una curva, no línea recta.",
+    tecnica:"Formas geométricas", duracion:"25 min" },
+  { id:"cuerpo", label:"Figura completa", icon:"⬜", color:"#a060f0",
+    queries:["human figure pose full body","body pose standing","figure art pose"],
+    tip:"Dibuja la línea de acción primero (eje de movimiento). La figura sigue esa curva.",
+    tecnica:"Gesture drawing", duracion:"45 min" },
+  { id:"cabeza", label:"Cráneo / Estructura", icon:"○", color:"#f06060",
+    queries:["skull anatomy art","head structure portrait","face anatomy proportions"],
+    tip:"Usa el método Loomis: esfera + plano lateral + líneas de construcción para ojos, nariz y boca.",
+    tecnica:"Método Loomis", duracion:"35 min" },
+  { id:"expresion", label:"Expresión", icon:"◎", color:"#f0d060",
+    queries:["facial expression emotion","expressive portrait face","face emotion closeup"],
+    tip:"Las emociones se leen en 3 zonas: cejas, ojos y boca. Exagera ligeramente para lectura clara.",
+    tecnica:"Microexpresiones", duracion:"20 min" },
+  { id:"perfil", label:"Perfil lateral", icon:"◑", color:"#60f0a0",
+    queries:["profile portrait side view","side face portrait","profile head shot"],
+    tip:"El perfil revela el puente nasal, el ángulo de la mandíbula y la oreja — detalles que el frontal oculta.",
+    tecnica:"Proporciones laterales", duracion:"25 min" },
+  { id:"desnudo", label:"Desnudo artístico", icon:"◈", color:"#f0c0a0",
+    queries:["nude figure art drawing reference","artistic nude body pose","figure drawing reference nude"],
+    tip:"Observa la silueta general antes de los detalles. La luz define el volumen — busca la dirección de la fuente luminosa.",
+    tecnica:"Figura académica", duracion:"40 min" },
+  { id:"bodelon", label:"Bodegón", icon:"◆", color:"#a0c060",
+    queries:["still life objects arrangement","fruit bowl table arrangement","still life painting reference"],
+    tip:"El bodegón entrena la observación de luz, sombra y perspectiva. Empieza por las formas geométricas base de cada objeto.",
+    tecnica:"Luz y composición", duracion:"30 min" },
+];
+
+var state = {
+  reto: null,
+  pool: [],
+  foto: null,
+  loading: false,
+  timer: { running: false, left: 0, total: 0, interval: null },
+  dailyIdx: 0,
+};
+
+function getDailyIdx() {
+  return Math.floor(Date.now() / 86400000) % RETOS.length;
+}
+
+// ── Fetch ────────────────────────────────────────────────────
+async function fetchUnsplash(q) {
+  try {
+    var r = await fetch("https://api.unsplash.com/search/photos?query="+encodeURIComponent(q)+"&per_page=20&content_filter=high&client_id="+UNSPLASH_KEY);
+    var d = await r.json();
+    return (d.results||[]).map(function(p){
+      return {id:"u_"+p.id, url:p.urls.regular, author:p.user.name, source:"Unsplash"};
+    });
+  } catch(e){ return []; }
+}
+
+async function fetchPixabay(q) {
+  try {
+    var r = await fetch("https://pixabay.com/api/?key="+PIXABAY_KEY+"&q="+encodeURIComponent(q)+"&image_type=photo&safesearch=true&per_page=20");
+    var d = await r.json();
+    return (d.hits||[]).map(function(p){
+      return {id:"p_"+p.id, url:p.webformatURL, author:p.user, source:"Pixabay"};
+    });
+  } catch(e){ return []; }
+}
+
+async function fetchPexels(q) {
+  try {
+    var r = await fetch("https://api.pexels.com/v1/search?query="+encodeURIComponent(q)+"&per_page=20",
+      {headers:{Authorization:PEXELS_KEY}});
+    var d = await r.json();
+    return (d.photos||[]).map(function(p){
+      return {id:"px_"+p.id, url:p.src.large, author:p.photographer, source:"Pexels"};
+    });
+  } catch(e){ return []; }
+}
+
+var ANIME_QUERIES = {
+  rostro: "1girl face solo",
+  ojos: "eyes close-up 1girl",
+  manos: "hands detail fingers",
+  cuerpo: "1girl full_body standing",
+  cabeza: "1girl head solo portrait",
+  expresion: "1girl facial_expression emotion",
+  perfil: "1girl profile solo",
+  desnudo: "1girl nude artistic",
+  bodelon: "still life food fruit"
+};
+
+async function loadPool() {
+  state.loading = true;
+  setLoading(true);
+  var r = state.reto;
+  var combined = [];
+  if (animeMode) {
+    // Try waifu.im + nekos.best first, fallback to Pixabay anime queries
+    var animeQ = {
+      rostro:"anime face portrait", ojos:"anime eyes closeup", manos:"anime hands",
+      cuerpo:"anime full body character", cabeza:"anime head portrait",
+      expresion:"anime facial expression", perfil:"anime profile face",
+      desnudo:"figure drawing nude art reference", bodelon:"still life fruit objects"
+    };
+    var q2 = animeQ[r.id] || "anime character";
+    var results = await Promise.all([
+      fetchWaifuIm(r.id).catch(function(){return[];}),
+      fetchNekosBest(r.id).catch(function(){return[];}),
+      fetchPixabay(q2),
+      fetchUnsplash(q2)
+    ]);
+    results.forEach(function(arr){ combined = combined.concat(arr); });
+  } else {
+    var q = r.queries[Math.floor(Math.random()*r.queries.length)];
+    var results = await Promise.all([fetchUnsplash(q), fetchPixabay(q), fetchPexels(q)]);
+    results.forEach(function(arr){ combined = combined.concat(arr); });
+  }
+  combined.sort(function(){ return Math.random()-0.5; });
+  state.pool = combined;
+  state.loading = false;
+  if (combined.length > 0) showFoto(combined[0]);
+  else setEmpty();
+}
+
+function setMode(mode) {
+  animeMode = (mode === 'anime');
+  var btnReal = document.getElementById("btn-real");
+  var btnAnime = document.getElementById("btn-anime");
+  if (btnReal) {
+    btnReal.style.background = !animeMode ? "#60c8f015" : "#181a1d";
+    btnReal.style.borderColor = !animeMode ? "#60c8f060" : "#2a2c30";
+    btnReal.style.color = !animeMode ? "#60c8f0" : "#888";
+    btnReal.style.fontWeight = !animeMode ? "500" : "400";
+  }
+  if (btnAnime) {
+    btnAnime.style.background = animeMode ? "#cc44aa15" : "#181a1d";
+    btnAnime.style.borderColor = animeMode ? "#cc44aa60" : "#2a2c30";
+    btnAnime.style.color = animeMode ? "#ff88dd" : "#888";
+    btnAnime.style.fontWeight = animeMode ? "500" : "400";
+  }
+  var real = document.getElementById("src-real");
+  var anime = document.getElementById("src-anime");
+  if (real) real.style.display = animeMode ? "none" : "flex";
+  if (anime) anime.style.display = animeMode ? "flex" : "none";
+  loadPool();
+}
+
+function nextFoto() {
+  if (!state.pool.length) { loadPool(); return; }
+  var current = state.foto ? state.foto.id : null;
+  var candidates = state.pool.filter(function(p){ return p.id !== current; });
+  if (!candidates.length) candidates = state.pool;
+  var f = candidates[Math.floor(Math.random()*candidates.length)];
+  showFoto(f);
+}
+
+// ── UI ───────────────────────────────────────────────────────
+function setLoading(on) {
+  document.getElementById("foto-loading").style.display = on ? "block" : "none";
+  document.getElementById("foto-img").style.display = "none";
+  document.getElementById("foto-empty").style.display = "none";
+  document.getElementById("foto-badge").style.display = "none";
+}
+
+function setEmpty() {
+  document.getElementById("foto-loading").style.display = "none";
+  document.getElementById("foto-img").style.display = "none";
+  document.getElementById("foto-empty").style.display = "block";
+  document.getElementById("foto-badge").style.display = "none";
+}
+
+function showFoto(foto) {
+  state.foto = foto;
+  var img = document.getElementById("foto-img");
+  document.getElementById("foto-loading").style.display = "none";
+  document.getElementById("foto-empty").style.display = "none";
+  img.style.display = "none";
+  img.onload = function() {
+    img.style.display = "block";
+    var badge = document.getElementById("foto-badge");
+    badge.style.display = "flex";
+    var chip = document.getElementById("foto-src-chip");
+    var srcColors = {Unsplash:{bg:"rgba(96,200,240,0.2)",b:"#60c8f0",c:"#60c8f0"}, Pixabay:{bg:"rgba(240,160,96,0.2)",b:"#f0a060",c:"#f0a060"}, Pexels:{bg:"rgba(5,214,138,0.15)",b:"#05855a",c:"#05d68a"}, "Waifu.im":{bg:"rgba(255,100,200,0.15)",b:"#cc44aa",c:"#ff88dd"}, "Nekos.best":{bg:"rgba(200,100,255,0.15)",b:"#9944cc",c:"#cc88ff"}};
+    var sc = srcColors[foto.source] || srcColors.Pixabay;
+    chip.textContent = foto.source;
+    chip.style.background = sc.bg;
+    chip.style.borderColor = sc.b;
+    chip.style.color = sc.c;
+    document.getElementById("foto-author").textContent = foto.author ? "👤 "+foto.author : "";
+  };
+  img.onerror = function() { setEmpty(); };
+  img.src = foto.url;
+}
+
+function selectReto(idx) {
+  state.reto = RETOS[idx];
+  stopTimer();
+  document.getElementById("done-msg").style.display = "none";
+  renderRetoHeader();
+  renderSidebar();
+  loadPool();
+}
+
+function renderSidebar() {
+  var sb = document.getElementById("sidebar");
+  sb.innerHTML = "";
+  var dailyIdx = getDailyIdx();
+  RETOS.forEach(function(r, i) {
+    var div = document.createElement("div");
+    div.className = "sb-item" + (state.reto.id === r.id ? " active" : "");
+    div.style.setProperty("--color", r.color);
+    div.innerHTML = '<div class="sb-icon">'+r.icon+'</div>'
+      +'<div class="sb-label">'+r.label+'</div>'
+      +(i === dailyIdx ? '<div class="sb-today">HOY</div>' : '');
+    div.onclick = (function(idx){ return function(){ selectReto(idx); }; })(i);
+    sb.appendChild(div);
+  });
+}
+
+function renderRetoHeader() {
+  var r = state.reto;
+  var icon = document.getElementById("reto-icon");
+  icon.textContent = r.icon;
+  icon.style.background = r.color+"18";
+  icon.style.borderColor = r.color+"50";
+  document.getElementById("reto-title").textContent = r.label;
+  document.getElementById("reto-title").style.color = r.color;
+  var bt = document.getElementById("badge-tecnica");
+  bt.textContent = r.tecnica;
+  bt.style.background = r.color+"15";
+  bt.style.borderColor = r.color+"40";
+  bt.style.color = r.color;
+  document.getElementById("badge-dur").textContent = "⏱ "+r.duracion;
+  document.getElementById("reto-tip").innerHTML = '<span class="tip-label" style="color:'+r.color+'">Tip: </span>'+r.tip;
+  // Update reto-header gradient
+  document.getElementById("reto-header").style.background = "linear-gradient(135deg, "+r.color+"18 0%, transparent 60%)";
+  // Update otra-foto button color
+  var ob = document.getElementById("btn-otra");
+  ob.style.background = r.color+"18";
+  ob.style.borderColor = r.color+"50";
+  ob.style.color = r.color;
+}
+
+function renderDate() {
+  var d = new Date();
+  var opts = {weekday:"long", day:"numeric", month:"long"};
+  document.getElementById("date-badge").textContent = d.toLocaleDateString("es-PE", opts);
+}
+
+// ── Timer ────────────────────────────────────────────────────
+var CIRC = 2 * Math.PI * 26;
+
+function updateTimerUI() {
+  var t = state.timer;
+  var pct = t.total > 0 ? t.left / t.total : 0;
+  var dash = CIRC * (1 - pct);
+  var fill = document.getElementById("timer-fill");
+  fill.style.strokeDasharray = CIRC;
+  fill.style.strokeDashoffset = dash;
+  var urgent = t.left > 0 && t.left <= 10;
+  fill.style.stroke = urgent ? "#f06060" : "#c8f060";
+  var txt = document.getElementById("timer-text");
+  txt.style.color = urgent ? "#f06060" : "#e8e8e8";
+  if (t.total === 0) { txt.textContent = "--:--"; return; }
+  var m = Math.floor(t.left/60);
+  var s = t.left%60;
+  txt.textContent = (m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+}
+
+function startTimer(mins) {
+  stopTimer();
+  var secs = Math.round(mins * 60);
+  state.timer.left = secs;
+  state.timer.total = secs;
+  state.timer.running = true;
+  document.getElementById("done-msg").style.display = "none";
+  updateTimerUI();
+  state.timer.interval = setInterval(function() {
+    state.timer.left = Math.max(0, state.timer.left - 1);
+    updateTimerUI();
+    if (state.timer.left === 0) {
+      stopTimer();
+      var dm = document.getElementById("done-msg");
+      dm.style.display = "block";
+      dm.style.background = state.reto.color+"18";
+      dm.style.borderColor = state.reto.color+"50";
+      dm.style.color = state.reto.color;
+      dm.style.border = "1px solid";
+      dm.style.borderRadius = "7px";
+      setTimeout(function() {
+        dm.style.display = "none";
+        nextFoto();
+        if (state.timer.total > 0) {
+          setTimeout(function() { startTimer(state.timer.total / 60); }, 800);
+        }
+      }, 1500);
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (state.timer.interval) { clearInterval(state.timer.interval); state.timer.interval = null; }
+  state.timer.running = false;
+}
+
+// ── Init ─────────────────────────────────────────────────────
+(function init() {
+  renderDate();
+  state.dailyIdx = getDailyIdx();
+  state.reto = RETOS[state.dailyIdx];
+  renderSidebar();
+  renderRetoHeader();
+  updateTimerUI();
+  // Init timer ring
+  document.getElementById("timer-fill").style.strokeDasharray = CIRC;
+  document.getElementById("timer-fill").style.strokeDashoffset = CIRC;
+  loadPool();
+})();
+</script>
+</body>
+</html>
